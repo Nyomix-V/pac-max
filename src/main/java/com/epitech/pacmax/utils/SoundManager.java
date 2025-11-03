@@ -160,6 +160,39 @@ public class SoundManager {
     }
     
     /**
+     * Joue un son en PRIORITÉ ABSOLUE.
+     * Arrête immédiatement tous les sons en cours et joue celui-ci.
+     * Utilisé pour les sons critiques (Game Over, victoire, etc.)
+     * 
+     * @param soundName Nom de l'effet à jouer en priorité
+     */
+    public void playSoundPriority(String soundName) {
+        if (!soundEnabled) return;
+        
+        // Arrêter TOUS les sons en cours
+        stopAllSounds();
+        
+        MediaPlayer player = soundEffects.get(soundName);
+        if (player != null) {
+            // Réinitialiser et jouer le son prioritaire
+            player.seek(Duration.ZERO);
+            player.setVolume(sfxVolume);
+            player.play();
+            
+            currentSound = player;
+            lastPlayedSound = soundName;
+            
+            System.out.println("🔊 Son prioritaire joué: " + soundName);
+            
+            // Réinitialiser quand le son est terminé
+            player.setOnEndOfMedia(() -> {
+                lastPlayedSound = null;
+                currentSound = null;
+            });
+        }
+    }
+    
+    /**
      * Vérifie si un son est en cours de lecture.
      * 
      * @return true si un son joue actuellement
@@ -190,6 +223,25 @@ public class SoundManager {
         } catch (Exception e) {
             System.err.println("Erreur lors de la lecture de la musique: " + e.getMessage());
         }
+    }
+    
+    /**
+     * Arrête TOUS les sons (effets + musique).
+     */
+    public void stopAllSounds() {
+        // Arrêter le son en cours
+        if (currentSound != null) {
+            currentSound.stop();
+            currentSound = null;
+        }
+        
+        // Arrêter la musique
+        if (musicPlayer != null) {
+            musicPlayer.stop();
+        }
+        
+        // Réinitialiser
+        lastPlayedSound = null;
     }
     
     /**

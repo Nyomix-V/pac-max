@@ -344,8 +344,8 @@ public class GameEngine {
                     } else {
                         currentState = GameState.GAME_OVER;
                         
-                        // Jouer le son de fin de jeu
-                        soundManager.playSound("gameover");
+                        // Jouer le son de fin de jeu en PRIORITÉ (arrête tous les autres sons)
+                        soundManager.playSoundPriority("gameover");
                     }
                 }
             }
