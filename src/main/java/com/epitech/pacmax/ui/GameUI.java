@@ -62,6 +62,10 @@ public class GameUI extends StackPane {
         // Afficher selon l'état du jeu
         switch (gameEngine.getCurrentState()) {
             case MENU -> renderMenu();
+            case WAITING_TO_START -> {
+                renderGame();
+                renderWaitingMessage();
+            }
             case RUNNING -> renderGame();
             case PAUSED -> {
                 renderGame();
@@ -217,6 +221,24 @@ public class GameUI extends StackPane {
         gc.setFont(Font.font("Arial", FontWeight.NORMAL, 20));
         gc.fillText("Appuyez sur ENTRÉE pour le niveau suivant", 
             CANVAS_WIDTH / 2.0, CANVAS_HEIGHT / 2.0 + 70);
+    }
+    
+    /**
+     * Affiche le message d'attente du premier mouvement.
+     */
+    private void renderWaitingMessage() {
+        // Message semi-transparent en haut
+        gc.setFill(Color.color(0, 0, 0, 0.7));
+        gc.fillRect(0, 0, CANVAS_WIDTH, 80);
+        
+        gc.setFill(Color.YELLOW);
+        gc.setFont(Font.font("Arial", FontWeight.BOLD, 24));
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.fillText("Appuyez sur une flèche pour commencer", CANVAS_WIDTH / 2.0, 35);
+        
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 16));
+        gc.fillText("Les fantômes ne bougeront pas tant que vous ne bougez pas", CANVAS_WIDTH / 2.0, 60);
     }
     
     /**

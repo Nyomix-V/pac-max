@@ -1,5 +1,6 @@
 package com.epitech.pacmax.entities;
 
+import com.epitech.pacmax.utils.SoundManager;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import javafx.scene.image.Image;
@@ -66,16 +67,22 @@ public class Player extends Entity {
      */
     private void loadImages() {
         try {
-            // Charger l'image normale
+            // Charger l'image normale (à la racine)
             File normalFile = new File("pacmax.png");
             if (normalFile.exists()) {
                 normalImage = new Image(normalFile.toURI().toString());
+                System.out.println("✓ Image Pac-Man chargée: pacmax.png");
+            } else {
+                System.err.println("✗ Image non trouvée: pacmax.png (doit être à la racine)");
             }
             
-            // Charger l'image powered (bouche ouverte)
-            File poweredFile = new File("pacmax_open_mouth.png");
+            // Charger l'image powered (dans resources/images/)
+            File poweredFile = new File("resources/images/pacmax_open_mouth.png");
             if (poweredFile.exists()) {
                 poweredImage = new Image(poweredFile.toURI().toString());
+                System.out.println("✓ Image Pac-Man powered chargée: pacmax_open_mouth.png");
+            } else {
+                System.err.println("✗ Image non trouvée: resources/images/pacmax_open_mouth.png");
             }
         } catch (Exception e) {
             System.err.println("Erreur lors du chargement des images: " + e.getMessage());
@@ -191,10 +198,14 @@ public class Player extends Entity {
     
     /**
      * Active le mode power-up.
+     * Joue le son "jadore_les_hot_dogs_ikea.ogg".
      */
     public void activatePowerUp() {
         powered = true;
         powerUpTimer = POWER_UP_DURATION;
+        
+        // Jouer le son du hot-dog
+        SoundManager.getInstance().playSound("hotdog");
     }
     
     /**

@@ -11,6 +11,9 @@ public enum GameState {
     /** Menu principal */
     MENU,
     
+    /** En attente du premier mouvement du joueur */
+    WAITING_TO_START,
+    
     /** Jeu en cours */
     RUNNING,
     

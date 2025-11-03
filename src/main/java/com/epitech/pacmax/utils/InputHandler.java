@@ -36,6 +36,7 @@ public class InputHandler {
         
         // Gestion selon l'état du jeu
         switch (gameEngine.getCurrentState()) {
+            case WAITING_TO_START -> handleGameInput(code); // Permettre au joueur de bouger pour démarrer
             case RUNNING -> handleGameInput(code);
             case PAUSED -> handlePauseInput(code);
             case MENU -> handleMenuInput(code);

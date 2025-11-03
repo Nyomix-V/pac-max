@@ -3,6 +3,8 @@ package com.epitech.pacmax.engine;
 import com.epitech.pacmax.entities.*;
 import com.epitech.pacmax.levels.GameMap;
 import com.epitech.pacmax.utils.CollisionManager;
+import com.epitech.pacmax.utils.SoundManager;
+import com.epitech.pacmax.utils.ProximitySound;
 import javafx.animation.AnimationTimer;
 
 import java.util.ArrayList;
@@ -41,6 +43,12 @@ public class GameEngine {
     
     /** Gestionnaire de collisions */
     private CollisionManager collisionManager;
+    
+    /** Gestionnaire de sons */
+    private SoundManager soundManager;
+    
+    /** Gestionnaire de sons contextuels (proximité) */
+    private ProximitySound proximitySound;
     
     /** Timer d'animation JavaFX */
     private AnimationTimer gameLoop;
@@ -83,13 +91,25 @@ public class GameEngine {
      * Initialise le jeu avec une nouvelle partie.
      */
     public void initialize() {
+        // Initialiser le gestionnaire de sons (charge tous les sons)
+        soundManager = SoundManager.getInstance();
+        System.out.println("\n🔊 Initialisation du système audio...");
+        
         // Créer le joueur
         player = new Player(400, 300);
         
         // Charger la carte (pour l'instant, une carte simple)
         loadLevel(currentLevel);
         
-        currentState = GameState.RUNNING;
+        // Initialiser le système de sons contextuels (proximité)
+        proximitySound = new ProximitySound(800, 600); // Taille de la map
+        
+        // Jouer le son de démarrage
+        System.out.println("🎵 Lecture du son de démarrage...");
+        soundManager.playSound("start");
+        
+        // État d'attente : le joueur est invisible jusqu'au premier mouvement
+        currentState = GameState.WAITING_TO_START;
     }
     
     /**
@@ -219,12 +239,26 @@ public class GameEngine {
      * @param deltaTime Temps écoulé depuis la dernière frame
      */
     public void update(double deltaTime) {
-        if (currentState != GameState.RUNNING) {
+        // Limiter le deltaTime pour éviter les gros sauts
+        if (deltaTime > 0.1) deltaTime = 0.1;
+        
+        // En mode WAITING_TO_START : attendre que le joueur bouge
+        if (currentState == GameState.WAITING_TO_START) {
+            // Mettre à jour le joueur pour qu'il puisse bouger
+            player.update(deltaTime);
+            
+            // Vérifier si le joueur a bougé
+            if (player.getDirection() != Direction.NONE) {
+                currentState = GameState.RUNNING;
+                System.out.println("🎮 Partie démarrée !");
+            }
+            // Ne pas mettre à jour les fantômes en mode attente
             return;
         }
         
-        // Limiter le deltaTime pour éviter les gros sauts
-        if (deltaTime > 0.1) deltaTime = 0.1;
+        if (currentState != GameState.RUNNING) {
+            return;
+        }
         
         // Mettre à jour le joueur
         player.update(deltaTime);
@@ -236,6 +270,11 @@ public class GameEngine {
                 ghost.getAI().setPlayerPosition(player.getCenterX(), player.getCenterY());
             }
             ghost.update(deltaTime);
+        }
+        
+        // Mettre à jour les sons contextuels (proximité)
+        if (proximitySound != null) {
+            proximitySound.update(player, ghosts);
         }
         
         // Vérifier les collisions
@@ -290,13 +329,23 @@ public class GameEngine {
                     ghost.setState(Ghost.GhostState.DEAD);
                     ghost.respawn();
                     player.addScore(200);
+                    
+                    // Jouer le son "ça va bien se passer Chaima"
+                    soundManager.playSound("chase");
                 } else if (ghost.getState() != Ghost.GhostState.DEAD) {
                     // Le fantôme touche le joueur
                     player.loseLife();
+                    
+                    // Jouer le son "vous avez signé"
+                    soundManager.playSound("death");
+                    
                     if (player.getLives() > 0) {
                         resetPositions();
                     } else {
                         currentState = GameState.GAME_OVER;
+                        
+                        // Jouer le son de fin de jeu
+                        soundManager.playSound("gameover");
                     }
                 }
             }

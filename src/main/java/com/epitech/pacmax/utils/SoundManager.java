@@ -1,24 +1,28 @@
 package com.epitech.pacmax.utils;
 
-import javafx.scene.media.AudioClip;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
+import javafx.util.Duration;
 
-import java.net.URL;
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Gestionnaire des sons et musiques du jeu.
+ * Gestionnaire des sons et musiques du jeu (Singleton).
  * Centralise le chargement et la lecture des fichiers audio.
+ * Gère la file d'attente pour éviter les conflits sonores.
  * 
  * @author Epitech Team
  * @version 1.0
  */
 public class SoundManager {
     
+    /** Instance unique (Singleton) */
+    private static SoundManager instance;
+    
     /** Map des effets sonores */
-    private final Map<String, AudioClip> soundEffects;
+    private final Map<String, MediaPlayer> soundEffects;
     
     /** Lecteur de musique de fond */
     private MediaPlayer musicPlayer;
@@ -32,29 +36,51 @@ public class SoundManager {
     /** Indique si les sons sont activés */
     private boolean soundEnabled;
     
+    /** Son actuellement en cours de lecture */
+    private MediaPlayer currentSound;
+    
+    /** Dernier son joué (pour éviter les répétitions) */
+    private String lastPlayedSound;
+    
     /**
-     * Constructeur du gestionnaire de sons.
+     * Constructeur privé (Singleton).
      */
-    public SoundManager() {
+    private SoundManager() {
         this.soundEffects = new HashMap<>();
         this.sfxVolume = 0.7;
         this.musicVolume = 0.5;
         this.soundEnabled = true;
+        this.currentSound = null;
+        this.lastPlayedSound = null;
         
-        // TODO: Charger les sons depuis les ressources
-        // loadSounds();
+        // Charger les sons
+        loadSounds();
     }
     
     /**
-     * Charge les effets sonores.
-     * TODO: Implémenter le chargement depuis les ressources.
+     * Récupère l'instance unique du SoundManager.
+     * 
+     * @return L'instance du SoundManager
+     */
+    public static SoundManager getInstance() {
+        if (instance == null) {
+            instance = new SoundManager();
+        }
+        return instance;
+    }
+    
+    /**
+     * Charge les effets sonores depuis resources/sounds/effects/.
      */
     private void loadSounds() {
-        // Exemple de chargement (nécessite les fichiers audio)
-        // loadSound("eat", "/sounds/eat.wav");
-        // loadSound("death", "/sounds/death.wav");
-        // loadSound("ghost_eat", "/sounds/ghost_eat.wav");
-        // loadSound("power_up", "/sounds/power_up.wav");
+        // Sons du jeu (format MP3 pour meilleure compatibilité Windows)
+        loadSound("start", "resources/sounds/effects/ça_va_bien_se_passer_louis.mp3");
+        loadSound("hotdog", "resources/sounds/effects/jadore_les_hot_dogs_ikea.mp3");
+        loadSound("far", "resources/sounds/effects/noubliez_pas_de_signer_loud.mp3");
+        loadSound("danger", "resources/sounds/effects/oulala_quinze_minute_de_retard.mp3");
+        loadSound("chase", "resources/sounds/effects/ça_va_bien_se_passer_chaima.mp3");
+        loadSound("death", "resources/sounds/effects/vous_avez_signes.mp3");
+        loadSound("gameover", "resources/sounds/effects/a_bientot_sur_le_reseau_ligne_dazur_voice.mp3");
     }
     
     /**
@@ -65,29 +91,81 @@ public class SoundManager {
      */
     private void loadSound(String name, String path) {
         try {
-            URL resource = getClass().getResource(path);
-            if (resource != null) {
-                AudioClip clip = new AudioClip(resource.toString());
-                soundEffects.put(name, clip);
+            File file = new File(path);
+            if (file.exists()) {
+                System.out.println("📂 Tentative de chargement: " + path);
+                Media media = new Media(file.toURI().toString());
+                MediaPlayer player = new MediaPlayer(media);
+                player.setVolume(sfxVolume);
+                
+                // Vérifier les erreurs de chargement
+                player.setOnError(() -> {
+                    System.err.println("❌ Erreur Media pour " + name + ": " + player.getError().getMessage());
+                });
+                
+                player.setOnReady(() -> {
+                    System.out.println("✓ Son prêt: " + name + " (durée: " + media.getDuration().toSeconds() + "s)");
+                });
+                
+                soundEffects.put(name, player);
+            } else {
+                System.err.println("✗ Fichier non trouvé: " + path);
             }
         } catch (Exception e) {
             System.err.println("Erreur lors du chargement du son " + name + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
     /**
-     * Joue un effet sonore.
+     * Joue un effet sonore (un seul à la fois).
+     * Si un son est déjà en cours, il est ignoré.
      * 
      * @param soundName Nom de l'effet à jouer
      */
     public void playSound(String soundName) {
         if (!soundEnabled) return;
         
-        AudioClip clip = soundEffects.get(soundName);
-        if (clip != null) {
-            clip.setVolume(sfxVolume);
-            clip.play();
+        // Ne pas rejouer le même son
+        if (soundName.equals(lastPlayedSound)) {
+            return;
         }
+        
+        // Si un son est en cours, ne pas jouer
+        if (currentSound != null && currentSound.getStatus() == MediaPlayer.Status.PLAYING) {
+            return;
+        }
+        
+        MediaPlayer player = soundEffects.get(soundName);
+        if (player != null) {
+            // Arrêter le son précédent
+            if (currentSound != null) {
+                currentSound.stop();
+            }
+            
+            // Réinitialiser et jouer le nouveau son
+            player.seek(Duration.ZERO);
+            player.setVolume(sfxVolume);
+            player.play();
+            
+            currentSound = player;
+            lastPlayedSound = soundName;
+            
+            // Réinitialiser lastPlayedSound quand le son est terminé
+            player.setOnEndOfMedia(() -> {
+                lastPlayedSound = null;
+                currentSound = null;
+            });
+        }
+    }
+    
+    /**
+     * Vérifie si un son est en cours de lecture.
+     * 
+     * @return true si un son joue actuellement
+     */
+    public boolean isSoundPlaying() {
+        return currentSound != null && currentSound.getStatus() == MediaPlayer.Status.PLAYING;
     }
     
     /**
@@ -101,9 +179,9 @@ public class SoundManager {
         try {
             stopMusic();
             
-            URL resource = getClass().getResource(musicPath);
-            if (resource != null) {
-                Media media = new Media(resource.toString());
+            File file = new File(musicPath);
+            if (file.exists()) {
+                Media media = new Media(file.toURI().toString());
                 musicPlayer = new MediaPlayer(media);
                 musicPlayer.setVolume(musicVolume);
                 musicPlayer.setCycleCount(MediaPlayer.INDEFINITE);
