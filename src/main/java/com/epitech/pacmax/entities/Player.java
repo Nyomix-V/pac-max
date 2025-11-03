@@ -2,6 +2,9 @@ package com.epitech.pacmax.entities;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
+import javafx.scene.image.Image;
+
+import java.io.File;
 
 /**
  * Classe représentant le joueur (Pac-Man).
@@ -33,6 +36,12 @@ public class Player extends Entity {
     /** Vitesse normale du joueur */
     private static final double NORMAL_SPEED = 100.0;
     
+    /** Image normale de Pac-Man */
+    private Image normalImage;
+    
+    /** Image de Pac-Man avec power-up (bouche ouverte) */
+    private Image poweredImage;
+    
     /**
      * Constructeur du joueur.
      * 
@@ -40,13 +49,38 @@ public class Player extends Entity {
      * @param y Position Y initiale
      */
     public Player(double x, double y) {
-        super(x, y, 20, 20);
+        super(x, y, 30, 30); // Taille augmentée pour l'image
         this.lives = 3;
         this.score = 0;
         this.speed = NORMAL_SPEED;
         this.nextDirection = Direction.NONE;
         this.powered = false;
         this.powerUpTimer = 0;
+        
+        // Charger les images
+        loadImages();
+    }
+    
+    /**
+     * Charge les images de Pac-Man.
+     */
+    private void loadImages() {
+        try {
+            // Charger l'image normale
+            File normalFile = new File("pacmax.png");
+            if (normalFile.exists()) {
+                normalImage = new Image(normalFile.toURI().toString());
+            }
+            
+            // Charger l'image powered (bouche ouverte)
+            File poweredFile = new File("pacmax_open_mouth.png");
+            if (poweredFile.exists()) {
+                poweredImage = new Image(poweredFile.toURI().toString());
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur lors du chargement des images: " + e.getMessage());
+            // Les images resteront null, le rendu utilisera les formes par défaut
+        }
     }
     
     @Override
@@ -74,6 +108,33 @@ public class Player extends Entity {
     public void render(GraphicsContext gc) {
         if (!visible) return;
         
+        // Choisir l'image selon le mode power-up
+        Image currentImage = powered ? poweredImage : normalImage;
+        
+        // Si les images sont chargées, les afficher
+        if (currentImage != null) {
+            // Effet clignotant en fin de power-up
+            if (powered && powerUpTimer < 3.0 && ((int)(powerUpTimer * 10) % 2 == 0)) {
+                gc.setGlobalAlpha(0.5); // Transparence pour l'effet clignotant
+            }
+            
+            // Dessiner l'image
+            gc.drawImage(currentImage, x, y, width, height);
+            
+            // Réinitialiser l'opacité
+            gc.setGlobalAlpha(1.0);
+        } else {
+            // Fallback : rendu par défaut si les images ne sont pas chargées
+            renderDefault(gc);
+        }
+    }
+    
+    /**
+     * Rendu par défaut (formes géométriques) si les images ne sont pas disponibles.
+     * 
+     * @param gc Le contexte graphique
+     */
+    private void renderDefault(GraphicsContext gc) {
         // Couleur change selon le mode power-up
         if (powered) {
             // Effet clignotant en fin de power-up
@@ -86,12 +147,11 @@ public class Player extends Entity {
             gc.setFill(Color.YELLOW);
         }
         
-        // Dessine Pac-Man (cercle simple pour l'instant)
+        // Dessine Pac-Man (cercle simple)
         gc.fillOval(x, y, width, height);
         
         // Dessine la "bouche" selon la direction
         gc.setFill(Color.BLACK);
-        double mouthSize = 5;
         switch (direction) {
             case RIGHT -> gc.fillPolygon(
                 new double[]{x + width/2, x + width, x + width},
