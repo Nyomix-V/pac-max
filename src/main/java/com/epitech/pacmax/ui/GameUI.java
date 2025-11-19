@@ -110,6 +110,11 @@ public class GameUI extends StackPane {
             wall.render(gc);
         }
         
+        // Dessiner les portails
+        for (Portal portal : gameEngine.getPortals()) {
+            portal.render(gc);
+        }
+        
         // Dessiner les pac-gums
         for (PacGum pacGum : gameEngine.getPacGums()) {
             pacGum.render(gc);

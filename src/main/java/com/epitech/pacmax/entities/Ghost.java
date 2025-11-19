@@ -38,8 +38,14 @@ public class Ghost extends Entity {
     /** Timer pour l'état effrayé */
     private double scaredTimer;
     
-    /** Vitesse normale */
-    private static final double NORMAL_SPEED = 80.0;
+    /** Timer avant que le fantôme puisse sortir du spawn */
+    private double releaseTimer;
+    
+    /** Indique si le fantôme est sorti du spawn */
+    private boolean released;
+    
+    /** Vitesse normale (peut être modifiée par niveau) */
+    private double normalSpeed = 80.0;
     
     /** Vitesse en mode effrayé */
     private static final double SCARED_SPEED = 50.0;
@@ -68,11 +74,13 @@ public class Ghost extends Entity {
         super(x, y, 30, 30); // Taille augmentée pour les images
         this.type = type;
         this.ai = ai;
-        this.state = GhostState.CHASE;
+        this.state = GhostState.WAITING;
         this.spawnX = x;
         this.spawnY = y;
-        this.speed = NORMAL_SPEED;
+        this.speed = 0; // Immobile en attente
         this.scaredTimer = 0;
+        this.releaseTimer = 0;
+        this.released = false;
         
         // Définir la couleur selon le type
         this.color = switch (type) {
@@ -142,6 +150,16 @@ public class Ghost extends Entity {
     
     @Override
     public void update(double deltaTime) {
+        // Gestion du timer de release (sortie du spawn)
+        if (state == GhostState.WAITING) {
+            releaseTimer -= deltaTime;
+            if (releaseTimer <= 0 && !released) {
+                released = true;
+                setState(GhostState.CHASE);
+            }
+            return; // Ne pas bouger tant qu'on est en attente
+        }
+        
         // Gestion du timer d'état effrayé
         if (state == GhostState.SCARED) {
             scaredTimer -= deltaTime;
@@ -200,6 +218,7 @@ public class Ghost extends Entity {
     private void renderDefault(GraphicsContext gc) {
         // Couleur selon l'état
         switch (state) {
+            case WAITING -> gc.setFill(Color.DARKGRAY); // Gris foncé en attente
             case SCARED -> {
                 // Effet clignotant en fin de scared
                 if (scaredTimer < 2.0 && ((int)(scaredTimer * 10) % 2 == 0)) {
@@ -236,13 +255,16 @@ public class Ghost extends Entity {
         this.state = newState;
         
         switch (newState) {
+            case WAITING -> {
+                speed = 0; // Immobile en attente
+            }
             case SCARED -> {
                 speed = SCARED_SPEED;
                 scaredTimer = 10.0; // 10 secondes d'état effrayé
             }
-            case CHASE, SCATTER -> speed = NORMAL_SPEED;
+            case CHASE, SCATTER -> speed = normalSpeed;
             case DEAD -> {
-                speed = NORMAL_SPEED * 1.5; // Plus rapide pour retourner à la base
+                speed = normalSpeed * 1.5; // Plus rapide pour retourner à la base
             }
         }
     }
@@ -254,7 +276,9 @@ public class Ghost extends Entity {
         x = spawnX;
         y = spawnY;
         direction = Direction.NONE;
-        setState(GhostState.CHASE);
+        released = false;
+        releaseTimer = 0; // Sera défini par le GameEngine
+        setState(GhostState.WAITING);
     }
     
     /**
@@ -284,6 +308,25 @@ public class Ghost extends Entity {
         return color;
     }
     
+    public void setReleaseTimer(double timer) {
+        this.releaseTimer = timer;
+    }
+    
+    public double getReleaseTimer() {
+        return releaseTimer;
+    }
+    
+    public void setNormalSpeed(double speed) {
+        this.normalSpeed = speed;
+        if (state == GhostState.CHASE || state == GhostState.SCATTER) {
+            this.speed = speed;
+        }
+    }
+    
+    public double getNormalSpeed() {
+        return normalSpeed;
+    }
+    
     /**
      * Énumération des types de fantômes.
      */
@@ -298,6 +341,7 @@ public class Ghost extends Entity {
      * Énumération des états possibles d'un fantôme (Pattern State).
      */
     public enum GhostState {
+        WAITING,  // En attente de sortie du spawn
         CHASE,    // Poursuit le joueur
         SCATTER,  // Retourne dans son coin
         SCARED,   // Effrayé (vulnérable)

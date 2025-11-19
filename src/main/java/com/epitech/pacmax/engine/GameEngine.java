@@ -38,6 +38,16 @@ public class GameEngine {
     /** Liste des murs */
     private List<Wall> walls;
     
+    /** Liste des portails */
+    private List<Portal> portals;
+    
+    /** Point de spawn unique pour tous les fantômes */
+    private double ghostSpawnX;
+    private double ghostSpawnY;
+    
+    /** Délai entre la sortie de chaque fantôme (en secondes) */
+    private static final double GHOST_RELEASE_DELAY = 8.0;
+    
     /** Carte actuelle */
     private GameMap currentMap;
     
@@ -70,6 +80,9 @@ public class GameEngine {
         this.ghosts = new ArrayList<>();
         this.pacGums = new ArrayList<>();
         this.walls = new ArrayList<>();
+        this.portals = new ArrayList<>();
+        this.ghostSpawnX = 400; // Centre de la map
+        this.ghostSpawnY = 300;
         this.collisionManager = new CollisionManager();
         this.currentLevel = 1;
         this.lastFrameTime = System.nanoTime();
@@ -95,8 +108,8 @@ public class GameEngine {
         soundManager = SoundManager.getInstance();
         System.out.println("\n🔊 Initialisation du système audio...");
         
-        // Créer le joueur
-        player = new Player(400, 300);
+        // Créer le joueur (position différente du spawn des fantômes)
+        player = new Player(100, 500);
         
         // Charger la carte (pour l'instant, une carte simple)
         loadLevel(currentLevel);
@@ -124,14 +137,21 @@ public class GameEngine {
         ghosts.clear();
         pacGums.clear();
         walls.clear();
+        portals.clear();
         
         // Créer des murs de bordure
         createBorderWalls();
         
-        // Créer quelques pac-gums
+        // Ajouter des obstacles supplémentaires selon le niveau (AVANT les pac-gums)
+        addLevelObstacles(level);
+        
+        // Créer les portails gauche/droite
+        createPortals();
+        
+        // Créer quelques pac-gums (après les murs pour éviter les collisions)
         createPacGums();
         
-        // Créer les fantômes avec différentes IA
+        // Créer les fantômes avec spawn unique
         createGhosts();
         
         totalPacGums = pacGums.size();
@@ -167,6 +187,66 @@ public class GameEngine {
     }
     
     /**
+     * Crée les portails de téléportation aux extrémités gauche et droite de la map.
+     */
+    private void createPortals() {
+        int mapHeight = 600;
+        int portalHeight = 80;
+        int portalWidth = 40;
+        
+        // Portail gauche (au milieu du bord gauche, légèrement à l'intérieur)
+        Portal leftPortal = new Portal(30, (mapHeight - portalHeight) / 2, portalWidth, portalHeight);
+        
+        // Portail droit (au milieu du bord droit, légèrement à l'intérieur)
+        Portal rightPortal = new Portal(730, (mapHeight - portalHeight) / 2, portalWidth, portalHeight);
+        
+        // Lier les portails entre eux
+        leftPortal.linkTo(rightPortal);
+        rightPortal.linkTo(leftPortal);
+        
+        portals.add(leftPortal);
+        portals.add(rightPortal);
+    }
+    
+    /**
+     * Ajoute des obstacles supplémentaires selon le niveau.
+     * Plus le niveau est élevé, plus il y a d'obstacles (labyrinthe).
+     * 
+     * @param level Le niveau actuel
+     */
+    private void addLevelObstacles(int level) {
+        int tileSize = 30;
+        
+        // Niveau 2+ : ajouter des murs verticaux
+        if (level >= 2) {
+            for (int y = 200; y < 400; y += tileSize) {
+                walls.add(new Wall(200, y, tileSize, tileSize));
+                walls.add(new Wall(600, y, tileSize, tileSize));
+            }
+        }
+        
+        // Niveau 3+ : ajouter plus de complexité au labyrinthe
+        if (level >= 3) {
+            for (int x = 300; x < 500; x += tileSize) {
+                walls.add(new Wall(x, 300, tileSize, tileSize));
+            }
+            for (int y = 100; y < 200; y += tileSize) {
+                walls.add(new Wall(400, y, tileSize, tileSize));
+            }
+        }
+        
+        // Niveau 4+ : encore plus d'obstacles
+        if (level >= 4) {
+            for (int x = 150; x < 250; x += tileSize) {
+                walls.add(new Wall(x, 400, tileSize, tileSize));
+            }
+            for (int x = 550; x < 650; x += tileSize) {
+                walls.add(new Wall(x, 200, tileSize, tileSize));
+            }
+        }
+    }
+    
+    /**
      * Crée les pac-gums dans le niveau.
      */
     private void createPacGums() {
@@ -175,16 +255,29 @@ public class GameEngine {
         // Créer une grille de pac-gums
         for (int x = 60; x < 750; x += 40) {
             for (int y = 60; y < 550; y += 40) {
-                // Vérifier qu'il n'y a pas de mur à cet endroit
-                boolean hasWall = false;
+                // Vérifier qu'il n'y a pas de mur ou de portail à cet endroit
+                boolean hasObstacle = false;
+                
+                // Vérifier les murs
                 for (Wall wall : walls) {
                     if (Math.abs(wall.getX() - x) < 30 && Math.abs(wall.getY() - y) < 30) {
-                        hasWall = true;
+                        hasObstacle = true;
                         break;
                     }
                 }
                 
-                if (!hasWall) {
+                // Vérifier les portails
+                if (!hasObstacle) {
+                    for (Portal portal : portals) {
+                        if (x >= portal.getX() - 20 && x <= portal.getX() + portal.getWidth() + 20 &&
+                            y >= portal.getY() - 20 && y <= portal.getY() + portal.getHeight() + 20) {
+                            hasObstacle = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!hasObstacle) {
                     // 5% de chance d'être un power-up
                     PacGum.PacGumType type = Math.random() < 0.05 ? 
                         PacGum.PacGumType.POWER_UP : PacGum.PacGumType.NORMAL;
@@ -195,17 +288,36 @@ public class GameEngine {
     }
     
     /**
-     * Crée les fantômes avec leurs IA respectives.
+     * Crée les fantômes avec spawn unique et sortie séquentielle.
+     * Tous partent du même point et sortent avec un délai de 8 secondes.
      */
     private void createGhosts() {
-        ghosts.add(new Ghost(100, 100, Ghost.GhostType.BLINKY, 
-            new com.epitech.pacmax.ai.AggressiveAI()));
-        ghosts.add(new Ghost(700, 100, Ghost.GhostType.PINKY, 
-            new com.epitech.pacmax.ai.AmbushAI()));
-        ghosts.add(new Ghost(100, 500, Ghost.GhostType.INKY, 
-            new com.epitech.pacmax.ai.RandomAI()));
-        ghosts.add(new Ghost(700, 500, Ghost.GhostType.CLYDE, 
-            new com.epitech.pacmax.ai.RandomAI()));
+        // Tous les fantômes utilisent la nouvelle IA aléatoire avec poursuite conditionnelle
+        Ghost ghost1 = new Ghost(ghostSpawnX, ghostSpawnY, Ghost.GhostType.BLINKY, 
+            new com.epitech.pacmax.ai.ChaseRandomAI());
+        ghost1.setReleaseTimer(0); // Sort immédiatement
+        ghosts.add(ghost1);
+        
+        Ghost ghost2 = new Ghost(ghostSpawnX, ghostSpawnY, Ghost.GhostType.PINKY, 
+            new com.epitech.pacmax.ai.ChaseRandomAI());
+        ghost2.setReleaseTimer(GHOST_RELEASE_DELAY); // Sort après 8 secondes
+        ghosts.add(ghost2);
+        
+        Ghost ghost3 = new Ghost(ghostSpawnX, ghostSpawnY, Ghost.GhostType.INKY, 
+            new com.epitech.pacmax.ai.ChaseRandomAI());
+        ghost3.setReleaseTimer(GHOST_RELEASE_DELAY * 2); // Sort après 16 secondes
+        ghosts.add(ghost3);
+        
+        Ghost ghost4 = new Ghost(ghostSpawnX, ghostSpawnY, Ghost.GhostType.CLYDE, 
+            new com.epitech.pacmax.ai.ChaseRandomAI());
+        ghost4.setReleaseTimer(GHOST_RELEASE_DELAY * 3); // Sort après 24 secondes
+        ghosts.add(ghost4);
+        
+        // Augmenter la vitesse des fantômes selon le niveau
+        double speedMultiplier = 1.0 + (currentLevel - 1) * 0.15; // +15% par niveau
+        for (Ghost ghost : ghosts) {
+            ghost.setNormalSpeed(80.0 * speedMultiplier);
+        }
     }
     
     /**
@@ -263,11 +375,20 @@ public class GameEngine {
         // Mettre à jour le joueur
         player.update(deltaTime);
         
+        // Mettre à jour les portails
+        for (Portal portal : portals) {
+            portal.update(deltaTime);
+        }
+        
         // Mettre à jour les fantômes
         for (Ghost ghost : ghosts) {
-            // Mettre à jour la position du joueur pour l'IA
+            // Mettre à jour la position du joueur et le statut powerup pour l'IA
             if (ghost.getAI() != null) {
                 ghost.getAI().setPlayerPosition(player.getCenterX(), player.getCenterY());
+                // Informer l'IA si le joueur est sous powerup
+                if (ghost.getAI() instanceof com.epitech.pacmax.ai.ChaseRandomAI) {
+                    ((com.epitech.pacmax.ai.ChaseRandomAI) ghost.getAI()).setPlayerPowered(player.isPowered());
+                }
             }
             ghost.update(deltaTime);
         }
@@ -304,6 +425,22 @@ public class GameEngine {
             }
         }
         
+        // Collision joueur - portails
+        for (Portal portal : portals) {
+            if (collisionManager.checkCollision(player, portal)) {
+                portal.teleport(player);
+            }
+        }
+        
+        // Collision fantômes - portails
+        for (Ghost ghost : ghosts) {
+            for (Portal portal : portals) {
+                if (collisionManager.checkCollision(ghost, portal)) {
+                    portal.teleport(ghost);
+                }
+            }
+        }
+        
         // Collision joueur - pac-gums
         for (PacGum pacGum : pacGums) {
             if (!pacGum.isCollected() && collisionManager.checkCollision(player, pacGum)) {
@@ -323,6 +460,11 @@ public class GameEngine {
         
         // Collision joueur - fantômes
         for (Ghost ghost : ghosts) {
+            // Ignorer les fantômes en attente (WAITING) ou morts (DEAD)
+            if (ghost.getState() == Ghost.GhostState.WAITING || ghost.getState() == Ghost.GhostState.DEAD) {
+                continue;
+            }
+            
             if (collisionManager.checkCollision(player, ghost)) {
                 if (ghost.getState() == Ghost.GhostState.SCARED) {
                     // Le joueur mange le fantôme
@@ -364,6 +506,12 @@ public class GameEngine {
         if (remainingPacGums == 0) {
             currentState = GameState.LEVEL_COMPLETE;
             currentLevel++;
+            
+            // Charger le niveau suivant avec plus de difficultés
+            System.out.println("🎉 Niveau " + (currentLevel - 1) + " terminé ! Passage au niveau " + currentLevel);
+            loadLevel(currentLevel);
+            resetPositions();
+            currentState = GameState.RUNNING;
         }
     }
     
@@ -371,9 +519,13 @@ public class GameEngine {
      * Réinitialise les positions après une mort.
      */
     private void resetPositions() {
-        player.reset(400, 300);
-        for (Ghost ghost : ghosts) {
+        player.reset(100, 500); // Position différente du spawn des fantômes
+        
+        // Réinitialiser les fantômes avec leurs délais de sortie
+        for (int i = 0; i < ghosts.size(); i++) {
+            Ghost ghost = ghosts.get(i);
             ghost.respawn();
+            ghost.setReleaseTimer(i * GHOST_RELEASE_DELAY); // Délai séquentiel
         }
     }
     
@@ -406,6 +558,10 @@ public class GameEngine {
     
     public List<Wall> getWalls() {
         return walls;
+    }
+    
+    public List<Portal> getPortals() {
+        return portals;
     }
     
     public int getCurrentLevel() {
