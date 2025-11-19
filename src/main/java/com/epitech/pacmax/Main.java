@@ -23,12 +23,12 @@ public class Main extends Application {
         gameUI = new GameUI();
         
         // Créer la scène
-        Scene scene = new Scene(gameUI, 800, 600);
+        Scene scene = new Scene(gameUI, 1920, 1080);
         
         // Configurer la fenêtre
         primaryStage.setTitle("Pac-Max - T-JAV-501 Project");
         primaryStage.setScene(scene);
-        primaryStage.setResizable(false);
+        primaryStage.setResizable(true);
         primaryStage.show();
         
         // Demander le focus pour les événements clavier

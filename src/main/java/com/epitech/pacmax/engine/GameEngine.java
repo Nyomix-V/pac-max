@@ -2,6 +2,7 @@ package com.epitech.pacmax.engine;
 
 import com.epitech.pacmax.entities.*;
 import com.epitech.pacmax.levels.GameMap;
+import com.epitech.pacmax.levels.LevelLoader;
 import com.epitech.pacmax.utils.CollisionManager;
 import com.epitech.pacmax.utils.SoundManager;
 import com.epitech.pacmax.utils.ProximitySound;
@@ -72,6 +73,24 @@ public class GameEngine {
     /** Nombre total de pac-gums au début du niveau */
     private int totalPacGums;
     
+    /** Option sélectionnée dans le menu de pause */
+    private int selectedPauseMenuOption = 0;
+    
+    /** Volume principal du jeu (0.0 à 1.0) */
+    private double masterVolume = 0.7;
+    
+    /** Option sélectionnée dans le menu des keybindings */
+    private int selectedKeybindingOption = 0;
+    
+    /** Indique si le jeu attend une nouvelle touche pour un keybinding */
+    private boolean isWaitingForKey = false;
+    
+    /** Indique si le jeu est en mode plein écran */
+    private boolean isFullscreen = false;
+    
+    /** Option sélectionnée dans le menu de victoire */
+    private int selectedVictoryMenuOption = 0;
+    
     /**
      * Constructeur privé (Pattern Singleton).
      */
@@ -81,8 +100,8 @@ public class GameEngine {
         this.pacGums = new ArrayList<>();
         this.walls = new ArrayList<>();
         this.portals = new ArrayList<>();
-        this.ghostSpawnX = 400; // Centre de la map
-        this.ghostSpawnY = 300;
+        this.ghostSpawnX = 1920 / 2.0; // Centre de la nouvelle map
+        this.ghostSpawnY = 1080 / 2.0;
         this.collisionManager = new CollisionManager();
         this.currentLevel = 1;
         this.lastFrameTime = System.nanoTime();
@@ -104,18 +123,21 @@ public class GameEngine {
      * Initialise le jeu avec une nouvelle partie.
      */
     public void initialize() {
+        // Réinitialiser le niveau au tout début
+        this.currentLevel = 1;
+
         // Initialiser le gestionnaire de sons (charge tous les sons)
         soundManager = SoundManager.getInstance();
         System.out.println("\n🔊 Initialisation du système audio...");
         
         // Créer le joueur (position différente du spawn des fantômes)
-        player = new Player(100, 500);
+        player = new Player(100, 1080 - 200); // Position de départ ajustée pour être dans la zone de jeu
         
         // Charger la carte (pour l'instant, une carte simple)
         loadLevel(currentLevel);
         
         // Initialiser le système de sons contextuels (proximité)
-        proximitySound = new ProximitySound(800, 600); // Taille de la map
+        proximitySound = new ProximitySound(1920, 1080); // Nouvelle taille de la map
         
         // Jouer le son de démarrage
         System.out.println("🎵 Lecture du son de démarrage...");
@@ -131,26 +153,17 @@ public class GameEngine {
      * @param level Numéro du niveau à charger
      */
     private void loadLevel(int level) {
-        // TODO: Charger depuis un fichier JSON
-        // Pour l'instant, création d'un niveau simple
-        
         ghosts.clear();
         pacGums.clear();
         walls.clear();
         portals.clear();
-        
-        // Créer des murs de bordure
+
+        // Génération procédurale pour tous les niveaux
         createBorderWalls();
-        
-        // Ajouter des obstacles supplémentaires selon le niveau (AVANT les pac-gums)
         addLevelObstacles(level);
-        
-        // Créer les portails gauche/droite
         createPortals();
-        
-        // Créer quelques pac-gums (après les murs pour éviter les collisions)
         createPacGums();
-        
+
         // Créer les fantômes avec spawn unique
         createGhosts();
         
@@ -161,18 +174,18 @@ public class GameEngine {
      * Crée les murs de bordure du niveau.
      */
     private void createBorderWalls() {
-        int tileSize = 30;
-        int mapWidth = 800;
-        int mapHeight = 600;
+        int tileSize = 40; // Tuiles un peu plus grandes pour la grande résolution
+        int mapWidth = 1920;
+        int mapHeight = 1080;
         
         // Murs horizontaux
         for (int x = 0; x < mapWidth; x += tileSize) {
             walls.add(new Wall(x, 0, tileSize, tileSize)); // Haut
-            walls.add(new Wall(x, mapHeight - tileSize, tileSize, tileSize)); // Bas
+            walls.add(new Wall(x, mapHeight - tileSize * 3, tileSize, tileSize)); // Bas (laisse de la place pour le HUD)
         }
         
         // Murs verticaux
-        for (int y = tileSize; y < mapHeight - tileSize; y += tileSize) {
+        for (int y = tileSize; y < mapHeight - tileSize * 3; y += tileSize) {
             walls.add(new Wall(0, y, tileSize, tileSize)); // Gauche
             walls.add(new Wall(mapWidth - tileSize, y, tileSize, tileSize)); // Droite
         }
@@ -190,15 +203,15 @@ public class GameEngine {
      * Crée les portails de téléportation aux extrémités gauche et droite de la map.
      */
     private void createPortals() {
-        int mapHeight = 600;
-        int portalHeight = 80;
-        int portalWidth = 40;
+        int mapHeight = 1080;
+        int portalHeight = 120;
+        int portalWidth = 20;
         
         // Portail gauche (au milieu du bord gauche, légèrement à l'intérieur)
-        Portal leftPortal = new Portal(30, (mapHeight - portalHeight) / 2, portalWidth, portalHeight);
+        Portal leftPortal = new Portal(45, (mapHeight / 2.0) - (portalHeight / 2.0), portalWidth, portalHeight);
         
         // Portail droit (au milieu du bord droit, légèrement à l'intérieur)
-        Portal rightPortal = new Portal(730, (mapHeight - portalHeight) / 2, portalWidth, portalHeight);
+        Portal rightPortal = new Portal(1920 - portalWidth - 45, (mapHeight / 2.0) - (portalHeight / 2.0), portalWidth, portalHeight);
         
         // Lier les portails entre eux
         leftPortal.linkTo(rightPortal);
@@ -215,33 +228,33 @@ public class GameEngine {
      * @param level Le niveau actuel
      */
     private void addLevelObstacles(int level) {
-        int tileSize = 30;
+        int tileSize = 40;
         
         // Niveau 2+ : ajouter des murs verticaux
         if (level >= 2) {
-            for (int y = 200; y < 400; y += tileSize) {
-                walls.add(new Wall(200, y, tileSize, tileSize));
-                walls.add(new Wall(600, y, tileSize, tileSize));
+            for (int y = 300; y < 780; y += tileSize) {
+                walls.add(new Wall(400, y, tileSize, tileSize));
+                walls.add(new Wall(1520, y, tileSize, tileSize));
             }
         }
         
         // Niveau 3+ : ajouter plus de complexité au labyrinthe
         if (level >= 3) {
-            for (int x = 300; x < 500; x += tileSize) {
-                walls.add(new Wall(x, 300, tileSize, tileSize));
+            for (int x = 600; x < 1320; x += tileSize) {
+                walls.add(new Wall(x, 520, tileSize, tileSize));
             }
-            for (int y = 100; y < 200; y += tileSize) {
-                walls.add(new Wall(400, y, tileSize, tileSize));
+            for (int y = 200; y < 400; y += tileSize) {
+                walls.add(new Wall(960, y, tileSize, tileSize));
             }
         }
         
         // Niveau 4+ : encore plus d'obstacles
-        if (level >= 4) {
-            for (int x = 150; x < 250; x += tileSize) {
-                walls.add(new Wall(x, 400, tileSize, tileSize));
+        if (level >= 4) { // Cette logique est conservée si vous ajoutez des niveaux plus tard
+            for (int x = 300; x < 500; x += tileSize) {
+                walls.add(new Wall(x, 800, tileSize, tileSize));
             }
-            for (int x = 550; x < 650; x += tileSize) {
-                walls.add(new Wall(x, 200, tileSize, tileSize));
+            for (int x = 1420; x < 1620; x += tileSize) {
+                walls.add(new Wall(x, 300, tileSize, tileSize));
             }
         }
     }
@@ -250,17 +263,17 @@ public class GameEngine {
      * Crée les pac-gums dans le niveau.
      */
     private void createPacGums() {
-        int tileSize = 30;
+        int spacing = 100; // Augmentation de l'espacement pour réduire le nombre de pac-gums
         
         // Créer une grille de pac-gums
-        for (int x = 60; x < 750; x += 40) {
-            for (int y = 60; y < 550; y += 40) {
+        for (int x = 80; x < 1920 - 80; x += spacing) {
+            for (int y = 80; y < 1080 - 120; y += spacing) {
                 // Vérifier qu'il n'y a pas de mur ou de portail à cet endroit
                 boolean hasObstacle = false;
                 
                 // Vérifier les murs
                 for (Wall wall : walls) {
-                    if (Math.abs(wall.getX() - x) < 30 && Math.abs(wall.getY() - y) < 30) {
+                    if (Math.abs(wall.getX() - x) < spacing && Math.abs(wall.getY() - y) < spacing) {
                         hasObstacle = true;
                         break;
                     }
@@ -269,8 +282,8 @@ public class GameEngine {
                 // Vérifier les portails
                 if (!hasObstacle) {
                     for (Portal portal : portals) {
-                        if (x >= portal.getX() - 20 && x <= portal.getX() + portal.getWidth() + 20 &&
-                            y >= portal.getY() - 20 && y <= portal.getY() + portal.getHeight() + 20) {
+                        if (x >= portal.getX() - spacing && x <= portal.getX() + portal.getWidth() + spacing &&
+                            y >= portal.getY() - spacing && y <= portal.getY() + portal.getHeight() + spacing) {
                             hasObstacle = true;
                             break;
                         }
@@ -368,7 +381,8 @@ public class GameEngine {
             return;
         }
         
-        if (currentState != GameState.RUNNING) {
+        // Le jeu s'arrête seulement pour ces états
+        if (currentState == GameState.PAUSED || currentState == GameState.PAUSE_MENU || currentState == GameState.OPTIONS_MENU || currentState == GameState.KEYBINDING_MENU || currentState == GameState.MENU || currentState == GameState.GAME_OVER || currentState == GameState.VICTORY || currentState == GameState.LEVEL_COMPLETE) {
             return;
         }
         
@@ -503,15 +517,34 @@ public class GameEngine {
             .filter(p -> !p.isCollected())
             .count();
         
-        if (remainingPacGums == 0) {
-            currentState = GameState.LEVEL_COMPLETE;
+        if (currentState == GameState.RUNNING) { // Pour ne pas vérifier si on est déjà dans un autre état
+            double percentageRemaining = (double) remainingPacGums / totalPacGums;
+
+            if (totalPacGums > 0 && percentageRemaining <= 0.80) { // 0.20 = 20% restants (80% mangées)
+                // Si le niveau 3 (ou plus) est terminé, le jeu est gagné.
+                if (currentLevel >= 3) {
+                    setState(GameState.VICTORY);
+                    System.out.println("🏆 Victoire ! Vous avez terminé tous les niveaux !");
+                    soundManager.playSoundPriority("victory");
+                } else {
+                    // Sinon, le niveau est "terminable", on passe à l'état LEVEL_CLEARED
+                    setState(GameState.LEVEL_CLEARED);
+                    System.out.println("🎉 Niveau " + currentLevel + " terminé ! Prêt pour le suivant.");
+                }
+            }
+        }
+    }
+    
+    /**
+     * Fait passer le jeu au niveau suivant.
+     * Appelé par l'InputHandler lorsque le joueur appuie sur la touche.
+     */
+    public void proceedToNextLevel() {
+        if (currentState == GameState.LEVEL_CLEARED) {
             currentLevel++;
-            
-            // Charger le niveau suivant avec plus de difficultés
-            System.out.println("🎉 Niveau " + (currentLevel - 1) + " terminé ! Passage au niveau " + currentLevel);
             loadLevel(currentLevel);
             resetPositions();
-            currentState = GameState.RUNNING;
+            setState(GameState.RUNNING);
         }
     }
     
@@ -519,7 +552,7 @@ public class GameEngine {
      * Réinitialise les positions après une mort.
      */
     private void resetPositions() {
-        player.reset(100, 500); // Position différente du spawn des fantômes
+        player.reset(100, 1080 - 200); // Position de départ ajustée pour être dans la zone de jeu
         
         // Réinitialiser les fantômes avec leurs délais de sortie
         for (int i = 0; i < ghosts.size(); i++) {
@@ -566,5 +599,58 @@ public class GameEngine {
     
     public int getCurrentLevel() {
         return currentLevel;
+    }
+
+    public int getSelectedPauseMenuOption() {
+        return selectedPauseMenuOption;
+    }
+
+    public void setSelectedPauseMenuOption(int selectedPauseMenuOption) {
+        this.selectedPauseMenuOption = selectedPauseMenuOption;
+    }
+
+    public double getMasterVolume() {
+        return masterVolume;
+    }
+
+    public void setMasterVolume(double volume) {
+        // Assurer que le volume reste entre 0.0 et 1.0
+        this.masterVolume = Math.max(0.0, Math.min(1.0, volume));
+        // Appliquer le volume au SoundManager
+        if (soundManager != null) {
+            soundManager.setMasterVolume(this.masterVolume);
+        }
+    }
+
+    public int getSelectedKeybindingOption() {
+        return selectedKeybindingOption;
+    }
+
+    public void setSelectedKeybindingOption(int selectedKeybindingOption) {
+        this.selectedKeybindingOption = selectedKeybindingOption;
+    }
+
+    public boolean isWaitingForKey() {
+        return isWaitingForKey;
+    }
+
+    public void setWaitingForKey(boolean waitingForKey) {
+        isWaitingForKey = waitingForKey;
+    }
+
+    public boolean isFullscreen() {
+        return isFullscreen;
+    }
+
+    public void setFullscreen(boolean fullscreen) {
+        this.isFullscreen = fullscreen;
+    }
+
+    public int getSelectedVictoryMenuOption() {
+        return selectedVictoryMenuOption;
+    }
+
+    public void setSelectedVictoryMenuOption(int selectedVictoryMenuOption) {
+        this.selectedVictoryMenuOption = selectedVictoryMenuOption;
     }
 }

@@ -20,12 +20,27 @@ public enum GameState {
     /** Jeu en pause */
     PAUSED,
     
+    /** Menu de pause avec options */
+    PAUSE_MENU,
+    
+    /** Menu des options (volume, etc.) */
+    OPTIONS_MENU,
+    
+    /** Menu d'assignation des touches */
+    KEYBINDING_MENU,
+    
     /** Game Over */
     GAME_OVER,
     
     /** Victoire (niveau terminé) */
     LEVEL_COMPLETE,
     
+    /** Le joueur a atteint le seuil pour finir le niveau mais peut encore jouer */
+    LEVEL_CLEARED,
+    
     /** Transition entre niveaux */
-    TRANSITION
+    TRANSITION,
+
+    /** Le joueur a gagné la partie */
+    VICTORY
 }

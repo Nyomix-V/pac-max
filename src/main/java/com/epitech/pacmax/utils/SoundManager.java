@@ -81,6 +81,7 @@ public class SoundManager {
         loadSound("chase", "resources/sounds/effects/ça_va_bien_se_passer_chaima.mp3");
         loadSound("death", "resources/sounds/effects/vous_avez_signes.mp3");
         loadSound("gameover", "resources/sounds/effects/a_bientot_sur_le_reseau_ligne_dazur_voice.mp3");
+        loadSound("victory", "resources/sounds/effects/victory_sound.mp3"); // À remplacer par votre son de victoire
     }
     
     /**
@@ -282,6 +283,16 @@ public class SoundManager {
         if (!enabled) {
             stopMusic();
         }
+    }
+    
+    /**
+     * Définit le volume principal pour les effets sonores et la musique.
+     * 
+     * @param masterVolume Le volume principal (0.0 à 1.0)
+     */
+    public void setMasterVolume(double masterVolume) {
+        setSfxVolume(masterVolume);
+        setMusicVolume(masterVolume);
     }
     
     /**

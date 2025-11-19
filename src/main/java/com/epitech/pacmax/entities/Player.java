@@ -32,10 +32,10 @@ public class Player extends Entity {
     private double powerUpTimer;
     
     /** Durée du power-up en secondes */
-    private static final double POWER_UP_DURATION = 10.0;
+    private static final double POWER_UP_DURATION = 60.0;
     
     /** Vitesse normale du joueur */
-    private static final double NORMAL_SPEED = 100.0;
+    private static final double NORMAL_SPEED = 200.0;
     
     /** Image normale de Pac-Man */
     private Image normalImage;
@@ -125,11 +125,24 @@ public class Player extends Entity {
                 gc.setGlobalAlpha(0.5); // Transparence pour l'effet clignotant
             }
             
-            // Dessiner l'image
-            gc.drawImage(currentImage, x, y, width, height);
+            // Calculer l'angle de rotation en fonction de la direction
+            double angle = switch (direction) {
+                case UP -> -90;
+                case DOWN -> 90;
+                case LEFT -> 180;
+                default -> 0; // RIGHT ou NONE
+            };
+
+            // Sauvegarder l'état du canvas, appliquer la rotation, dessiner, puis restaurer
+            gc.save();
+            gc.translate(getCenterX(), getCenterY());
+            gc.rotate(angle);
+            gc.drawImage(currentImage, -width / 2, -height / 2, width, height);
+            gc.restore();
             
             // Réinitialiser l'opacité
             gc.setGlobalAlpha(1.0);
+
         } else {
             // Fallback : rendu par défaut si les images ne sont pas chargées
             renderDefault(gc);
