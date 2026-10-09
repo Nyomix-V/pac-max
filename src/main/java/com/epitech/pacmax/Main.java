@@ -28,6 +28,8 @@ public class Main extends Application {
         // Configurer la fenêtre
         primaryStage.setTitle("Pac-Max - T-JAV-501 Project");
         primaryStage.setScene(scene);
+        // Supprimer le message d'aide lors du passage en plein écran
+        primaryStage.setFullScreenExitHint("");
         primaryStage.setResizable(true);
         primaryStage.show();
         
@@ -35,9 +37,16 @@ public class Main extends Application {
         gameUI.requestFocus();
         
         // Boucle de rendu
+        com.epitech.pacmax.engine.GameEngine gameEngine = com.epitech.pacmax.engine.GameEngine.getInstance();
+        final long[] lastFrameTime = {System.nanoTime()};
+
         AnimationTimer renderLoop = new AnimationTimer() {
             @Override
             public void handle(long now) {
+                double deltaTime = (now - lastFrameTime[0]) / 1_000_000_000.0;
+                lastFrameTime[0] = now;
+
+                gameEngine.update(deltaTime); // Appel de la logique de jeu
                 gameUI.render();
             }
         };

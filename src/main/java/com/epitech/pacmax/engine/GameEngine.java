@@ -337,25 +337,14 @@ public class GameEngine {
      * Démarre la boucle de jeu.
      */
     public void start() {
-        gameLoop = new AnimationTimer() {
-            @Override
-            public void handle(long now) {
-                double deltaTime = (now - lastFrameTime) / 1_000_000_000.0;
-                lastFrameTime = now;
-                
-                update(deltaTime);
-            }
-        };
-        gameLoop.start();
+        // La boucle de jeu est maintenant gérée par la classe Main pour synchroniser update() et render().
     }
     
     /**
      * Arrête la boucle de jeu.
      */
     public void stop() {
-        if (gameLoop != null) {
-            gameLoop.stop();
-        }
+        // La boucle de jeu est gérée par Main, donc cette méthode peut rester vide ou être supprimée.
     }
     
     /**

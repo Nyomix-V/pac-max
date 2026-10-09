@@ -309,9 +309,9 @@ public class GameUI extends StackPane {
         }
 
         // Instruction pour quitter
-        gc.setFill(Color.GRAY);
-        gc.setFont(Font.font("Arial", FontWeight.NORMAL, 18));
-        gc.fillText("Utilisez les flèches GAUCHE/DROITE pour ajuster", NATIVE_WIDTH / 2.0, NATIVE_HEIGHT / 2.0 + 80);
+        // gc.setFill(Color.GRAY);
+        // gc.setFont(Font.font("Arial", FontWeight.NORMAL, 18));
+        // gc.fillText("Utilisez les flèches GAUCHE/DROITE pour ajuster", NATIVE_WIDTH / 2.0, NATIVE_HEIGHT / 2.0 + 80);
         gc.fillText("Appuyez sur ÉCHAP pour retourner", NATIVE_WIDTH / 2.0, NATIVE_HEIGHT / 2.0 + 110);
     }
     
@@ -494,15 +494,6 @@ public class GameUI extends StackPane {
                 Rectangle buttonBounds = new Rectangle(NATIVE_WIDTH / 2.0 - 250, NATIVE_HEIGHT / 2.0 - 115 + (i * 50), 500, 40);
                 if (buttonBounds.contains(mouseX, mouseY)) {
                     gameEngine.setSelectedKeybindingOption(i);
-                    break;
-                }
-            }
-        } else if (gameEngine.getCurrentState() == GameState.VICTORY) {
-            String[] menuOptions = {"Rejouer", "Quitter"};
-            for (int i = 0; i < menuOptions.length; i++) {
-                Rectangle buttonBounds = getVictoryMenuButtonBounds(i);
-                if (buttonBounds.contains(mouseX, mouseY)) {
-                    gameEngine.setSelectedVictoryMenuOption(i);
                     break;
                 }
             }

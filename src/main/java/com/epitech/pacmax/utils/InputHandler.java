@@ -69,7 +69,10 @@ public class InputHandler {
             case MOVE_DOWN -> gameEngine.getPlayer().setNextDirection(Direction.DOWN);
             case MOVE_LEFT -> gameEngine.getPlayer().setNextDirection(Direction.LEFT);
             case MOVE_RIGHT -> gameEngine.getPlayer().setNextDirection(Direction.RIGHT);
-            case PAUSE -> gameEngine.setState(GameState.PAUSE_MENU);
+            case PAUSE -> {
+                // L'action PAUSE ouvre toujours le menu, sans condition.
+                gameEngine.setState(GameState.PAUSE_MENU);
+            }
         }
         if (gameEngine.getCurrentState() == GameState.WAITING_TO_START && gameEngine.getPlayer().getDirection() != Direction.NONE) {
             gameEngine.setState(GameState.RUNNING);
@@ -122,6 +125,11 @@ public class InputHandler {
             case RIGHT, D -> {
                 gameEngine.setMasterVolume(currentVolume + 0.1);
             }
+            // La navigation HAUT/BAS pour le plein écran est volontairement retirée
+            // pour privilégier l'interaction à la souris, qui est plus claire.
+            // case UP, W, Z:
+            // case DOWN, S:
+            //     gameEngine.setFullscreen(!gameEngine.isFullscreen());
             case ESCAPE -> {
                 gameEngine.setState(GameState.PAUSE_MENU); // Retourner au menu de pause
             }
